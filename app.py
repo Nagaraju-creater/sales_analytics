@@ -1,12 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.io as pio
-from fpdf import FPDF
-import tempfile
-import base64
-import os
 from datetime import datetime
+from fpdf import FPDF
 import streamlit.components.v1 as components
 
 # -------------------------------------------------------------
@@ -138,30 +134,8 @@ with col2:
     st.plotly_chart(product_pie, use_container_width=True)
 
 # -------------------------------------------------------------
-# SAVE CHART IMAGES
-# -------------------------------------------------------------
-tmp_dir = tempfile.gettempdir()
-sales_chart_path = os.path.join(tmp_dir, "sales_chart.png")
-region_chart_path = os.path.join(tmp_dir, "region_chart.png")
-product_chart_path = os.path.join(tmp_dir, "product_chart.png")
-
-pio.write_image(sales_trend, sales_chart_path, engine="kaleido")
-pio.write_image(region_bar, region_chart_path, engine="kaleido")
-pio.write_image(product_pie, product_chart_path, engine="kaleido")
-
-def encode_img(path):
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-sales_b64 = encode_img(sales_chart_path)
-region_b64 = encode_img(region_chart_path)
-product_b64 = encode_img(product_chart_path)
-
-# -------------------------------------------------------------
 # DOWNLOAD PDF SECTION
 # -------------------------------------------------------------
-from fpdf import FPDF
-
 if st.button("Generate & Download PDF Report"):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -179,26 +153,9 @@ if st.button("Generate & Download PDF Report"):
         f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         f"Total Sales: ${total_sales:,}\n"
         f"Total Profit: ${total_profit:,}\n"
-        f"Avg Profit Margin: {avg_profit_margin}%",
+        f"Avg Profit Margin: {avg_profit_margin}%\n\n"
+        "⚠️ Charts are not included due to Streamlit Cloud limitations."
     )
-    pdf.ln(5)
-
-    # Save chart images
-    tmp_dir = tempfile.gettempdir()
-    sales_path = os.path.join(tmp_dir, "sales_chart.png")
-    region_path = os.path.join(tmp_dir, "region_chart.png")
-    product_path = os.path.join(tmp_dir, "product_chart.png")
-
-    pio.write_image(sales_trend, sales_path, engine="kaleido")
-    pio.write_image(region_bar, region_path, engine="kaleido")
-    pio.write_image(product_pie, product_path, engine="kaleido")
-
-    # Insert charts
-    pdf.image(sales_path, x=15, w=180)
-    pdf.ln(10)
-    pdf.image(region_path, x=15, w=180)
-    pdf.ln(10)
-    pdf.image(product_path, x=15, w=180)
 
     # Footer
     pdf.ln(10)
@@ -208,7 +165,7 @@ if st.button("Generate & Download PDF Report"):
     # Save and offer download
     pdf_bytes = pdf.output(dest="S").encode("latin1")
     st.download_button(
-        label="⬇️ Download Full PDF Report (with Charts)",
+        label="⬇️ Download PDF Report",
         data=pdf_bytes,
         file_name=f"Sales_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
         mime="application/pdf",
