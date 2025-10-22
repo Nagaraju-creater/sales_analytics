@@ -154,9 +154,9 @@ if st.button("Generate & Download PDF Report with Charts"):
     pdf.multi_cell(
         0, 10,
         f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        f"Total Sales: 💰 ${total_sales:,}\n"
-        f"Total Profit: 📈 ${total_profit:,}\n"
-        f"Avg Profit Margin: 📊 {avg_profit_margin}%\n"
+        f"Total Sales: ${total_sales:,}\n"
+        f"Total Profit: ${total_profit:,}\n"
+        f"Avg Profit Margin: {avg_profit_margin}%\n"
     )
     pdf.ln(5)
 
