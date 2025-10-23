@@ -1,4 +1,6 @@
 import streamlit as st
+import matplotlib.pyplot as plt
+import io
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
@@ -27,8 +29,12 @@ except FileNotFoundError:
 # SIDEBAR FILTERS
 # -------------------------------------------------------------
 st.sidebar.header("🔍 Filter Options")
-regions = st.sidebar.multiselect("Select Region(s):", options=df["Region"].unique(), default=df["Region"].unique())
-products = st.sidebar.multiselect("Select Product(s):", options=df["Product"].unique(), default=df["Product"].unique())
+regions = st.sidebar.multiselect(
+    "Select Region(s):", options=df["Region"].unique(), default=df["Region"].unique()
+)
+products = st.sidebar.multiselect(
+    "Select Product(s):", options=df["Product"].unique(), default=df["Product"].unique()
+)
 filtered_df = df[(df["Region"].isin(regions)) & (df["Product"].isin(products))]
 
 # -------------------------------------------------------------
@@ -117,11 +123,18 @@ st.markdown("---")
 # CHARTS
 # -------------------------------------------------------------
 sales_trend = px.line(filtered_df, x="Date", y="Sales", color="Region", markers=True, template="plotly_white")
-region_bar = px.bar(filtered_df.groupby("Region")[["Sales", "Profit"]].sum().reset_index(),
-                    x="Region", y=["Sales", "Profit"], barmode="group",
-                    template="plotly_white", color_discrete_sequence=["#6366f1", "#34d399"])
-product_pie = px.pie(filtered_df, names="Product", values="Sales",
-                     template="plotly_white", color_discrete_sequence=px.colors.qualitative.Set3)
+region_bar = px.bar(
+    filtered_df.groupby("Region")[["Sales", "Profit"]].sum().reset_index(),
+    x="Region",
+    y=["Sales", "Profit"],
+    barmode="group",
+    template="plotly_white",
+    color_discrete_sequence=["#6366f1", "#34d399"]
+)
+product_pie = px.pie(
+    filtered_df, names="Product", values="Sales",
+    template="plotly_white", color_discrete_sequence=px.colors.qualitative.Set3
+)
 
 st.subheader("📅 Sales Trend Over Time")
 st.plotly_chart(sales_trend, use_container_width=True)
@@ -133,64 +146,50 @@ with col2:
     st.subheader("📦 Sales Share by Product")
     st.plotly_chart(product_pie, use_container_width=True)
 
+    # Matplotlib charts for PDF
+def create_sales_trend_chart(df):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    for region in df['Region'].unique():
+        subset = df[df['Region'] == region]
+        ax.plot(subset['Date'], subset['Sales'], marker='o', label=region)
+    ax.set_title("Sales Trend Over Time")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Sales")
+    ax.legend()
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+def create_region_bar_chart(df):
+    grouped = df.groupby("Region")[["Sales", "Profit"]].sum()
+    fig, ax = plt.subplots(figsize=(8, 4))
+    grouped.plot(kind="bar", ax=ax)
+    ax.set_title("Sales vs Profit by Region")
+    ax.set_ylabel("Amount")
+    ax.set_xlabel("Region")
+    ax.legend(["Sales", "Profit"])
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+def create_product_pie_chart(df):
+    grouped = df.groupby("Product")["Sales"].sum()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pie(grouped, labels=grouped.index, autopct="%1.1f%%", startangle=90)
+    ax.set_title("Sales Share by Product")
+    fig.tight_layout()
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
 # -------------------------------------------------------------
-# DOWNLOAD PDF SECTION
+# DOWNLOAD PDF SECTION (KPI SUMMARY ONLY)
 # -------------------------------------------------------------
-import io
-import plotly.io as pio
-
-if st.button("Generate & Download PDF Report with Charts"):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-
-    # Title
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(0, 10, "Sales Analytics Report", ln=True, align="C")
-    pdf.ln(10)
-
-    # Summary
-    pdf.set_font("Helvetica", size=12)
-    pdf.multi_cell(
-        0, 10,
-        f"Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        f"Total Sales: ${total_sales:,}\n"
-        f"Total Profit: ${total_profit:,}\n"
-        f"Avg Profit Margin: {avg_profit_margin}%\n"
-    )
-    pdf.ln(5)
-
-    # -----------------------
-    # Add charts as images
-    # -----------------------
-    charts = {
-        "Sales Trend Over Time": sales_trend,
-        "Sales vs Profit by Region": region_bar,
-        "Sales Share by Product": product_pie
-    }
-
-    for title, fig in charts.items():
-        pdf.set_font("Helvetica", "B", 14)
-        pdf.cell(0, 8, title, ln=True)
-        pdf.ln(2)
-
-        # Convert Plotly figure to PNG in-memory
-        img_bytes = pio.to_image(fig, format="png")
-
-        # Use BytesIO to write into FPDF
-        img_buffer = io.BytesIO(img_bytes)
-        pdf.image(img_buffer, x=15, w=180)
-        pdf.ln(10)
-
-    # Footer
-    pdf.set_font("Helvetica", "I", 10)
-    pdf.cell(0, 10, "Generated by Nagaraju K | Streamlit Sales Dashboard", align="C")
-
-    # Save and offer download
-    pdf_bytes = pdf.output(dest="S").encode("latin1")
-    st.download_button(
-        label="⬇️ Download PDF with Charts",
-        data=pdf_bytes,
-        file_name=f"Sales_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/pdf",
-    )
